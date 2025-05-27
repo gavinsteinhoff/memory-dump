@@ -4,8 +4,8 @@ import { StyleSheet, View } from "react-native";
 export default function Index() {
   return (
     <View style={styles.container}>
-      <Link href="/picture" style={styles.button}>
-        CheckIn QR Code Scanner
+      <Link href="/camera-screen" style={styles.button}>
+        Take a memory!
       </Link>
     </View>
   );

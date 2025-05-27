@@ -1,15 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import {
-  CameraMode,
-  CameraType,
-  CameraView,
-  FlashMode,
-  useCameraPermissions,
-  useMicrophonePermissions,
-} from "expo-camera";
 import { Image } from "expo-image";
 import { useVideoPlayer, VideoView } from "expo-video";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BackHandler,
   Button,
@@ -18,31 +10,43 @@ import {
   Text,
   View,
 } from "react-native";
+import {
+  Camera,
+  useCameraDevice,
+  useCameraFormat,
+  useCameraPermission,
+  useMicrophonePermission,
+} from "react-native-vision-camera";
 
-export default function Camera() {
-  const cameraRef = useRef<CameraView>(null);
+export default function RNVCamera() {
+  const camera = useRef<Camera>(null);
   const player = useVideoPlayer(null, (player) => {
     player.loop = true;
   });
 
-  const [facing, setFacing] = useState<CameraType>("back");
-  const [flash, setFlash] = useState<FlashMode>("off");
-  const [cameraMode, setCameraMode] = useState<CameraMode>("picture");
+  const [facing, setFacing] = useState<"front" | "back">("back");
+  const [flash, setFlash] = useState<"on" | "off">("off");
+  const [cameraMode, setCameraMode] = useState<string>("picture");
   const [image, setImage] = useState<string | null>(null);
-  const [isRecordingDone, setIsRecordingDone] = useState<boolean>(false);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [video, setVideo] = useState<string | null>(null);
 
-  const [cameraPerm, requestCameraPerm] = useCameraPermissions();
-  const [micPerm, requestMicPerm] = useMicrophonePermissions();
+  const device = useCameraDevice(facing);
+  const format = useCameraFormat(device, [{ photoAspectRatio: 16 / 9 }]);
 
-  const recordingPromiseRef = useRef<Promise<
-    { uri: string } | undefined
-  > | null>(null);
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const microphone = useMicrophonePermission();
+
+  const Reset = useCallback(() => {
+    player.pause();
+    setImage(null);
+    setVideo(null);
+  }, [player]);
 
   useEffect(() => {
     const backAction = () => {
-      if (image !== null || isRecordingDone) {
-        setImage(null);
-        setIsRecordingDone(false);
+      if (image !== null || video !== null) {
+        Reset();
         return true;
       }
       return false;
@@ -54,7 +58,7 @@ export default function Camera() {
     );
 
     return () => backHandler.remove();
-  }, [image, isRecordingDone]);
+  }, [image, video, Reset]);
 
   function toggleCameraFacing() {
     setFacing((current) => (current === "back" ? "front" : "back"));
@@ -64,7 +68,7 @@ export default function Camera() {
     if (cameraMode === "picture") {
       takePicture();
     } else {
-      if (recordingPromiseRef !== null) {
+      if (isRecording) {
         stopRecording();
       } else {
         startRecording();
@@ -73,52 +77,33 @@ export default function Camera() {
   }
 
   async function takePicture() {
-    const cameraCapturedPicture = await cameraRef.current?.takePictureAsync();
-    if (cameraCapturedPicture === undefined) {
-      return;
+    setVideo(null);
+    setIsRecording(false);
+    const photo = await camera.current?.takePhoto({
+      flash: flash,
+    });
+    if (photo) {
+      setImage(`file://${photo.path}`);
     }
-
-    setImage(cameraCapturedPicture.uri);
   }
 
   async function startRecording() {
-    try {
-      if (cameraMode !== "video") {
-        setCameraMode("video");
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-
-      setImage(null);
-      setIsRecordingDone(false);
-      const recordingRef = cameraRef.current?.recordAsync();
-      if (recordingRef) {
-        recordingPromiseRef.current = recordingRef;
-      }
-    } catch (error) {
-      console.error("Error starting video recording:", error);
-    }
+    setImage(null);
+    setIsRecording(true);
+    camera.current?.startRecording({
+      flash: flash,
+      onRecordingFinished: async (video) => {
+        setVideo(`file://${video.path}`);
+        await player.replaceAsync(`file://${video.path}`);
+        player.play();
+      },
+      onRecordingError: (error) => console.error(error),
+    });
   }
 
   async function stopRecording() {
-    try {
-      if (cameraMode !== "video") {
-        return;
-      }
-
-      cameraRef.current?.stopRecording();
-      if (recordingPromiseRef.current) {
-        const videoResult = await recordingPromiseRef.current;
-        if (videoResult && videoResult.uri) {
-          await player.replaceAsync(videoResult.uri);
-          player.play();
-          setIsRecordingDone(true);
-        }
-      }
-    } catch (error) {
-      console.error("Error stopping video recording:", error);
-    } finally {
-      recordingPromiseRef.current = null;
-    }
+    await camera.current?.stopRecording();
+    setIsRecording(false);
   }
 
   function toggleCameraFlash() {
@@ -130,39 +115,32 @@ export default function Camera() {
   }
 
   function deletePicture() {
-    setImage(null);
-    setIsRecordingDone(false);
+    Reset();
   }
 
   function submitPicture() {
-    setImage(null);
-    setIsRecordingDone(false);
+    Reset();
   }
 
-  if (!cameraPerm || !micPerm) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.message}>Loading permissions...</Text>
-      </View>
-    );
-  }
-
-  if (!cameraPerm.granted || !micPerm.granted) {
+  if (!hasPermission || !microphone.hasPermission) {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>
           We need your permission to show the camera
         </Text>
-        <Button onPress={requestCameraPerm} title="grant permission" />
-        <Button onPress={requestMicPerm} title="grant microphone permission" />
+        <Button onPress={requestPermission} title="grant permission" />
+        <Button
+          onPress={microphone.requestPermission}
+          title="grant microphone permission"
+        />
       </View>
     );
   }
 
-  if (image !== null || isRecordingDone) {
+  if (image !== null || video !== null) {
     return (
       <View style={styles.container}>
-        {isRecordingDone ? (
+        {video !== null ? (
           <VideoView
             style={styles.image}
             contentFit="contain"
@@ -188,15 +166,25 @@ export default function Camera() {
 
   return (
     <View style={styles.container}>
-      <CameraView
-        ref={cameraRef}
-        style={styles.camera}
-        animateShutter={false}
-        facing={facing}
-        flash={flash}
-        mode={cameraMode}
-        ratio="16:9"
-      />
+      {device != null ? (
+        <View style={styles.cameraRecording}>
+          <Camera
+            ref={camera}
+            style={StyleSheet.absoluteFill}
+            audio={true}
+            device={device}
+            format={format}
+            isActive={true}
+            onError={(e) => console.log(e)}
+            photo={true}
+            resizeMode="contain"
+            video={true}
+            zoom={device.neutralZoom}
+          />
+        </View>
+      ) : (
+        <View />
+      )}
       <View style={styles.buttonContainer}>
         <View style={styles.buttonRow}>
           <Pressable style={styles.button} onPress={toggleCameraFacing}>
@@ -248,8 +236,7 @@ export default function Camera() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    backgroundColor: "#000",
+    backgroundColor: "black",
   },
   message: {
     textAlign: "center",
@@ -260,6 +247,11 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
+  },
+  cameraRecording: {
+    flex: 1,
+    borderColor: "#344e41",
+    borderWidth: 5,
   },
   buttonContainer: {
     position: "absolute",
