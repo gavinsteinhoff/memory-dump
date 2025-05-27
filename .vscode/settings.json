@@ -4,5 +4,5 @@
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
   },
-  "cSpell.words": ["BYOC", "Pressable", "videocam"]
+  "cSpell.words": ["BYOC", "Pressable", "uuidv", "videocam"]
 }

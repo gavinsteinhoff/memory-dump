@@ -17,8 +17,11 @@ import {
   useCameraPermission,
   useMicrophonePermission,
 } from "react-native-vision-camera";
+import { SubmitMedia } from "./AzureStorage";
 
-export default function RNVCamera() {
+type Props = { eventId: string };
+
+export default function RNVCamera(props: Props) {
   const camera = useRef<Camera>(null);
   const player = useVideoPlayer(null, (player) => {
     player.loop = true;
@@ -28,11 +31,13 @@ export default function RNVCamera() {
   const [flash, setFlash] = useState<"on" | "off">("off");
   const [cameraMode, setCameraMode] = useState<string>("picture");
   const [image, setImage] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState<boolean>(false);
   const [video, setVideo] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
 
   const device = useCameraDevice(facing);
-  const format = useCameraFormat(device, [{ photoAspectRatio: 16 / 9 }]);
+  const format = useCameraFormat(device, [
+    { videoAspectRatio: 16 / 9, photoAspectRatio: 16 / 9 },
+  ]);
 
   const { hasPermission, requestPermission } = useCameraPermission();
   const microphone = useMicrophonePermission();
@@ -78,7 +83,6 @@ export default function RNVCamera() {
 
   async function takePicture() {
     setVideo(null);
-    setIsRecording(false);
     const photo = await camera.current?.takePhoto({
       flash: flash,
     });
@@ -93,6 +97,7 @@ export default function RNVCamera() {
     camera.current?.startRecording({
       flash: flash,
       onRecordingFinished: async (video) => {
+        setIsRecording(false);
         setVideo(`file://${video.path}`);
         await player.replaceAsync(`file://${video.path}`);
         player.play();
@@ -102,8 +107,9 @@ export default function RNVCamera() {
   }
 
   async function stopRecording() {
-    await camera.current?.stopRecording();
-    setIsRecording(false);
+    if (isRecording) {
+      await camera.current?.stopRecording();
+    }
   }
 
   function toggleCameraFlash() {
@@ -118,8 +124,14 @@ export default function RNVCamera() {
     Reset();
   }
 
-  function submitPicture() {
-    Reset();
+  async function submitPicture() {
+    if (image !== null) {
+      await SubmitMedia(props.eventId, image);
+    }
+
+    if (video !== null) {
+      await SubmitMedia(props.eventId, video);
+    }
   }
 
   if (!hasPermission || !microphone.hasPermission) {
@@ -167,21 +179,19 @@ export default function RNVCamera() {
   return (
     <View style={styles.container}>
       {device != null ? (
-        <View style={styles.cameraRecording}>
-          <Camera
-            ref={camera}
-            style={StyleSheet.absoluteFill}
-            audio={true}
-            device={device}
-            format={format}
-            isActive={true}
-            onError={(e) => console.log(e)}
-            photo={true}
-            resizeMode="contain"
-            video={true}
-            zoom={device.neutralZoom}
-          />
-        </View>
+        <Camera
+          ref={camera}
+          style={StyleSheet.absoluteFill}
+          audio={true}
+          device={device}
+          format={format}
+          isActive={true}
+          onError={(e) => console.log(e)}
+          photo={true}
+          resizeMode="contain"
+          video={true}
+          zoom={device.neutralZoom}
+        />
       ) : (
         <View />
       )}
@@ -193,6 +203,8 @@ export default function RNVCamera() {
           <Pressable
             style={({ pressed }) => [
               pressed
+                ? [styles.cameraButton, styles.cameraButtonPressed]
+                : isRecording
                 ? [styles.cameraButton, styles.cameraButtonPressed]
                 : styles.cameraButton,
             ]}
@@ -247,11 +259,7 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
-  },
-  cameraRecording: {
-    flex: 1,
-    borderColor: "#344e41",
-    borderWidth: 5,
+    backgroundColor: "red",
   },
   buttonContainer: {
     position: "absolute",
@@ -284,6 +292,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#a3b18a",
   },
   cameraButtonPressed: {
+    borderColor: "#a3b18a",
     backgroundColor: "#344e41",
   },
   cameraSwitch: {

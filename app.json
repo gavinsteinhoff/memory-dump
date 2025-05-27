@@ -51,6 +51,12 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
@@ -76,7 +82,8 @@
           "enableMicrophonePermission": true,
           "microphonePermissionText": "$(PRODUCT_NAME) needs access to your Microphone."
         }
-      ]
+      ],
+      "react-native-reanimated/plugin"
     ],
     "experiments": {
       "typedRoutes": true
