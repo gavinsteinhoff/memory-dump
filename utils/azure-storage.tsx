@@ -1,5 +1,6 @@
 import { BlobServiceClient, BlockBlobClient } from "@azure/storage-blob";
 import { Buffer } from "buffer";
+import { useEffect, useState } from "react";
 import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
 global.Buffer = Buffer;
@@ -28,4 +29,20 @@ export async function SubmitMedia(
   } catch (e) {
     console.error(e);
   }
+}
+
+export function UseMedia(eventId: string) {
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [images, setImages] = useState<string[]>([]);
+
+  useEffect(() => {
+    const tempImages = [];
+    for (let i = 0; i < 100; i++) {
+      tempImages.push(`https://picsum.photos/id/${i}/900/1600`);
+    }
+    setImages(tempImages);
+    setIsLoading(false);
+  }, [eventId]);
+
+  return { isLoading, images };
 }

@@ -1,17 +1,26 @@
-import { StyleSheet, Text, View } from "react-native";
+import { UseMedia } from "@/utils/azure-storage";
+import { Styles } from "@/utils/styles";
+import { Text, View } from "react-native";
+import ImageGallery from "./Gallery";
 
 type Props = { eventId: string };
 
 export default function EventDetails(props: Props) {
-  return (
-    <View>
-      <Text style={styles.text}>{props.eventId}</Text>
-    </View>
-  );
-}
+  const { isLoading, images } = UseMedia(props.eventId);
 
-const styles = StyleSheet.create({
-  text: {
-    color: "white",
-  },
-});
+  if (isLoading) {
+    return (
+      <View style={Styles.container}>
+        <Text>Loading</Text>
+      </View>
+    );
+  }
+
+  if (!isLoading) {
+    return (
+      <View style={Styles.container}>
+        <ImageGallery images={images} />
+      </View>
+    );
+  }
+}

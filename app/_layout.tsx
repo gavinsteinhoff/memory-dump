@@ -5,11 +5,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function RootLayout() {
   return (
     <GestureHandlerRootView>
-      <SafeAreaView style={{ flex: 1, backgroundColor: "black" }}>
+      <SafeAreaView
+        style={{ flex: 1, alignItems: "flex-start", backgroundColor: "black" }}
+      >
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: "black" },
+            contentStyle: { backgroundColor: "white" },
           }}
         />
       </SafeAreaView>
