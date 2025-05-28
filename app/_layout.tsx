@@ -1,19 +1,18 @@
 import { Stack } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function RootLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        headerStyle: {
-          backgroundColor: "#25292e",
-        },
-        headerTintColor: "#fff",
-        headerShadowVisible: false,
-      }}
-    >
-      <Stack.Screen name="index" options={{ title: "Home" }} />
-      <Stack.Screen name="camera-screen" options={{ title: "Camera" }} />
-    </Stack>
+    <GestureHandlerRootView>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "black" }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: "black" },
+          }}
+        />
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
